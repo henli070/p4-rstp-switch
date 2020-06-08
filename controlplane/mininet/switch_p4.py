@@ -5,6 +5,7 @@ import socket
 import struct
 import threading
 import time
+import os
 
 cpu_port = 64
 
@@ -70,8 +71,7 @@ class SwitchP4(Switch):
 
         # Run BMv2.
         with tempfile.NamedTemporaryFile() as f:
-            # "stdbuf" is used to disable stdout buffering, so log files are complete even if process killed.
-            self.cmd("stdbuf -o0 ./run_bmv2.sh{} > {} 2>&1 & echo $! >> {}".format(
+            self.cmd("simple_switch switch/p4-build/bmpd/switch.json{} > {} 2>&1 & echo $! >> {}".format(
                 bmv2_parameters,
                 "/dev/null" if self.bmv2_logging else "mininet_logs/bmv2-{}.txt".format(self.name),
                 f.name
@@ -81,7 +81,7 @@ class SwitchP4(Switch):
         time.sleep(1)
         # Run SwitchAPI drivers.
         with tempfile.NamedTemporaryFile() as f:
-            self.cmd("stdbuf -o0 ./run_drivers.sh{} > mininet_logs/drivers-{}.txt 2>&1 & echo $! >> {}".format(
+            self.cmd("stdbuf -o0 controlplane/drivers/drivers{} > mininet_logs/drivers-{}.txt 2>&1 & echo $! >> {}".format(
                 driver_parameters,
                 self.name,
                 f.name
@@ -91,7 +91,8 @@ class SwitchP4(Switch):
         time.sleep(1)
         # Run local controller.
         with tempfile.NamedTemporaryFile() as f:
-            self.cmd("stdbuf -o0 ./run_controller.sh{} > mininet_logs/controller-{}.txt 2>&1 & echo $! >> {}".format(
+            self.cmd("PYTHONPATH={}/switch/switchapi:$PYTHON_PATH python -u controlplane/controller/controller.py{} > mininet_logs/controller-{}.txt 2>&1 & echo $! >> {}".format(
+                os.getcwd(),
                 controller_parameters,
                 self.name,
                 f.name
